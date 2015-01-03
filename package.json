@@ -1,0 +1,19 @@
+{
+  "name": "ryan-adams",
+  "version": "1.0.0",
+  "description": "",
+  "main": "top-tracks.coffee",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "author": "",
+  "license": "MIT",
+  "dependencies": {
+    "coffee-script": "^1.8.0",
+    "express": "^4.10.6",
+    "lodash-node": "^2.4.1",
+    "request": "^2.51.0",
+    "spotify": "^0.3.0",
+    "use-global-fibrous": "^0.1.5"
+  }
+}
