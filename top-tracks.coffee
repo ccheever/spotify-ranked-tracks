@@ -6,6 +6,8 @@ request = require 'request'
   sortBy
 } = require 'lodash-node'
 
+market = 'US'
+
 _apiUrl = (method, params) ->
   """The URL for an API call"""
 
@@ -21,6 +23,7 @@ apiCall = fibrous (method, params) ->
   """Calls Spotify's API"""
 
   url = _apiUrl method, params
+  console.log "Spotify API call: ", url
   response = request.sync url
   try
     JSON.parse response.body
@@ -36,7 +39,7 @@ artistId = fibrous (artistName) ->
   result = apiCall.sync 'search',
     q: artistName
     type: 'artist'
-    market: 'US'
+    market: market
     limit: 1
     offset: 0
 
@@ -48,7 +51,7 @@ allAlbumIds = fibrous (artistId) ->
   # https://api.spotify.com/v1/artists/2qc41rNTtdLK0tV3mJn2Pm/albums?market=US&limit=50&offset=0
 
   result = apiCall.sync "artists/#{ artistId }/albums",
-    market: 'US'
+    market: market
     limit: 50
     offset: 0
 
@@ -114,7 +117,7 @@ htmlForTracks = (tracks) ->
   """Returns HTML for a bunch of tracks"""
 
   fields = ['id', 'popularity', 'name', 'uri']
-  html = "<style>BODY { font-family: Monaco; font-size: 10pt; }</style><table><tr><th>#</th>"
+  html = "<style>BODY { font-family: Helvetica; font-size: 10pt; }</style><table><tr><th>#</th>"
   for f in fields
     html += "<th>#{ f }</th>"
   html += "</tr>"
