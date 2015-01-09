@@ -1,8 +1,8 @@
 {
-  "name": "ryan-adams",
+  "name": "spotify-ranked-tracks",
   "version": "1.0.0",
   "description": "",
-  "main": "top-tracks.coffee",
+  "main": "index.coffee",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1"
   },
