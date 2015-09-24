@@ -4,9 +4,11 @@ var _asyncToGenerator = require('babel-runtime/helpers/async-to-generator')['def
 
 var _Promise = require('babel-runtime/core-js/promise')['default'];
 
+var _Object$assign = require('babel-runtime/core-js/object/assign')['default'];
+
 var apiCallAsync = _asyncToGenerator(function* (method, params) {
   var url = _apiUrl(method, params);
-  console.log('Spotify API call:', url);
+  console.log("Spotify API call:", url);
   var response = yield request.promise.get(url);
   try {
     return JSON.parse(response.body);
@@ -21,7 +23,8 @@ var artistIdAsync = _asyncToGenerator(function* (artistName) {
     type: 'artist',
     market: MARKET,
     limit: 1,
-    offset: 0 });
+    offset: 0
+  });
 
   if (result && result.artists && result.artists.items && result.artists.items[0]) {
     return result.artists.items[0].id;
@@ -32,7 +35,8 @@ var allAlbumIdsAsync = _asyncToGenerator(function* (artistId) {
   var result = yield apiCallAsync('artists/' + artistId + '/albums', {
     market: MARKET,
     limit: 50,
-    offset: 0 });
+    offset: 0
+  });
 
   var albums = result.items;
 
@@ -53,7 +57,8 @@ var allTracksFromAlbumIdsAsync = _asyncToGenerator(function* (albumIds) {
   var awaitables = [];
   for (var s of segments) {
     awaitables.push(apiCallAsync('albums', {
-      ids: s.join(',') }));
+      ids: s.join(',')
+    }));
   }
 
   var results = yield _Promise.all(awaitables);
@@ -70,11 +75,37 @@ var allTracksFromAlbumIdsAsync = _asyncToGenerator(function* (albumIds) {
   return tracks;
 });
 
+var infoForTracksAsync = _asyncToGenerator(function* (trackIds) {
+  var segments = segment(trackIds, 50);
+
+  var awaitables = [];
+  for (var s of segments) {
+    awaitables.push(apiCallAsync('tracks', {
+      ids: s.join(',')
+    }));
+  }
+
+  var results = yield _Promise.all(awaitables);
+  var trackInfos = [];
+  for (var r of results) {
+    var tracks = r.tracks;
+    for (var t of tracks) {
+      trackInfos.push(t);
+    }
+  }
+  return trackInfos;
+});
+
 var popularTracksByArtistAsync = _asyncToGenerator(function* (artistName) {
   var artistId = yield artistIdAsync(artistName);
   var albumIds = yield allAlbumIdsAsync(artistId);
   var tracks = yield allTracksFromAlbumIdsAsync(albumIds);
-  var popularTracks = _.sortBy(tracks, 'popularity');
+  var trackIds = tracks.map(function (t) {
+    return t.id;
+  });
+  var trackInfos = yield infoForTracksAsync(trackIds);
+  var filteredTrackInfos = filterTrackInfoToJustArtist(trackInfos, artistId);
+  var popularTracks = _.sortBy(filteredTrackInfos, 'popularity');
   popularTracks.reverse();
   return popularTracks;
 });
@@ -105,6 +136,23 @@ function segment(list, step) {
   return x;
 }
 
+function filterTrackInfoToJustArtist(trackInfos, artistId) {
+  var result = [];
+  for (var t of trackInfos) {
+    var include = false;
+    for (var a of t.artists) {
+      if (a.id === artistId) {
+        include = true;
+        break;
+      }
+    }
+    if (include) {
+      result.push(t);
+    }
+  }
+  return result;
+}
+
 function escape(text) {
   if (text == null) {
     return '';
@@ -121,18 +169,21 @@ var formHtml = `
 `;
 
 function htmlForTracks(tracks) {
-  var fields = ['id', 'popularity', 'name', 'uri'];
-  var html = '<style>BODY { font-family: Helvetica; font-size: 10pt; }</style>' + formHtml + '<table><tr><th>#</th>';
+  var fields = ['id', 'popularity', 'name', 'albumName', 'uri'];
+  tracks = tracks.map(function (t) {
+    return _Object$assign(t, { albumName: t.album.name });
+  });
+  var html = "<style>BODY { font-family: Helvetica; font-size: 10pt; }</style>" + formHtml + "<table><tr><th>#</th>";
   for (var f of fields) {
-    html += '<th>' + f + '</th>';
+    html += "<th>" + f + "</th>";
   }
-  html += '</tr>';
+  html += "</tr>";
 
   var n = 0;
   for (var t of tracks) {
-    html += '<tr>';
+    html += "<tr>";
     n++;
-    html += '<td>' + n + '</td>';
+    html += "<td>" + n + "</td>";
     for (var f of fields) {
       var x = t[f];
       if (_.isString(x) && x.match(/^[a-z]+:/)) {
@@ -140,11 +191,11 @@ function htmlForTracks(tracks) {
       } else {
         val = escape(x);
       }
-      html += '<td>' + val + '</td>';
+      html += "<td>" + val + "</td>";
     }
-    html += '</tr>';
+    html += "</tr>";
   }
-  html += '</table>';
+  html += "</table>";
 
   return html;
 }
@@ -152,12 +203,12 @@ function htmlForTracks(tracks) {
 if (require.main === module) {
   var app = express();
   app.get('/tracks/:artistName', function (req, res) {
-    console.log('artistName=', req.params.artistName);
+    console.log("artistName=", req.params.artistName);
     popularTracksByArtistAsync(req.params.artistName).then(function (tracks) {
-      console.log('aristName=', req.params.artistName, 'tracks.length=', tracks.length);
+      console.log("aristName=", req.params.artistName, "tracks.length=", tracks.length);
       res.send(htmlForTracks(tracks));
     }, function (err) {
-      console.error('Failed: ' + err.message);
+      console.error("Failed: " + err.message);
     });
   });
   app.get('/', function (req, res) {
@@ -174,7 +225,7 @@ if (require.main === module) {
   var server = app.listen(3000, function () {
     var host = server.address().address;
     var port = server.address().port;
-    console.log('Top tracks app listening at http://' + host + ':' + port);
+    console.log("Top tracks app listening at http://" + host + ":" + port);
   });
 }
 
@@ -183,7 +234,9 @@ module.exports = {
   artistIdAsync: artistIdAsync,
   allAlbumIdsAsync: allAlbumIdsAsync,
   allTracksFromAlbumIdsAsync: allTracksFromAlbumIdsAsync,
+  infoForTracksAsync: infoForTracksAsync,
   popularTracksByArtistAsync: popularTracksByArtistAsync,
   htmlForTracks: htmlForTracks,
-  escape: escape };
+  escape: escape
+};
 //# sourceMappingURL=sourcemaps/index.js.map

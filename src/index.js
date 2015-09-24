@@ -94,11 +94,52 @@ async function allTracksFromAlbumIdsAsync(albumIds) {
   return tracks;
 }
 
+async function infoForTracksAsync(trackIds) {
+  let segments = segment(trackIds, 50);
+
+  let awaitables = [];
+  for (let s of segments) {
+    awaitables.push(apiCallAsync('tracks', {
+      ids: s.join(','),
+    }));
+  }
+
+  let results = await Promise.all(awaitables);
+  let trackInfos = [];
+  for (let r of results) {
+    let tracks = r.tracks;
+    for (let t of tracks) {
+      trackInfos.push(t);
+    }
+  }
+  return trackInfos;
+}
+
+function filterTrackInfoToJustArtist(trackInfos, artistId) {
+  let result = [];
+  for (let t of trackInfos) {
+    let include = false;
+    for (let a of t.artists) {
+      if (a.id === artistId) {
+        include = true;
+        break;
+      }
+    }
+    if (include) {
+      result.push(t);
+    }
+  }
+  return result;
+}
+
 async function popularTracksByArtistAsync(artistName) {
   var artistId = await artistIdAsync(artistName);
   var albumIds = await allAlbumIdsAsync(artistId);
   var tracks = await allTracksFromAlbumIdsAsync(albumIds);
-  var popularTracks = _.sortBy(tracks, 'popularity');
+  let trackIds = tracks.map((t) => t.id);
+  let trackInfos = await infoForTracksAsync(trackIds);
+  let filteredTrackInfos = filterTrackInfoToJustArtist(trackInfos, artistId);
+  var popularTracks = _.sortBy(filteredTrackInfos, 'popularity');
   popularTracks.reverse();
   return popularTracks;
 }
@@ -126,7 +167,8 @@ var formHtml = `
 
 
 function htmlForTracks(tracks) {
-  var fields = ['id', 'popularity', 'name', 'uri'];
+  var fields = ['id', 'popularity', 'name', 'albumName', 'uri'];
+  tracks = tracks.map((t) => Object.assign(t, {albumName: t.album.name}));
   var html = "<style>BODY { font-family: Helvetica; font-size: 10pt; }</style>" + formHtml + "<table><tr><th>#</th>";
   for (var f of fields) {
     html += "<th>" + f + "</th>";
@@ -191,6 +233,7 @@ module.exports = {
   artistIdAsync,
   allAlbumIdsAsync,
   allTracksFromAlbumIdsAsync,
+  infoForTracksAsync,
   popularTracksByArtistAsync,
   htmlForTracks,
   escape,
